@@ -42,11 +42,17 @@ def Convert(config, j):
     returned_value = subprocess.Popen(splitcmd, shell=True).wait()
     
     print("Converting {} ISO2709 to MARC/XML".format(j["prefix"], config["num_records_per_file"], j["prefix"]))
-    tomarcxmlcmd = "cd %TMPDIR% && for f in %PREFIX%*; do yaz-marcdump -i marc -o marcxml -f UTF-8 -t UTF-8 $f > $f.xml; done"
+    tomarcxmlcmd = "cd %TMPDIR% && for f in %PREFIX%*; do yaz-marcdump -i marc -o marcxml -f UTF-8 -t UTF-8 $f > $f.1; done"
     tomarcxmlcmd = tomarcxmlcmd.replace('%TMPDIR%', j["tmpdir"])
     tomarcxmlcmd = tomarcxmlcmd.replace('%PREFIX%', j["prefix"])
     # print(tomarcxmlcmd)
     returned_value = subprocess.Popen(tomarcxmlcmd, shell=True).wait()
+
+    print ("Removing  {} from old file".format(j["prefix"], config["num_records_per_file"], j["prefix"]))
+    remoldcatcmd = "cd %TMPDIR% && for f in %PREFIX%*.1 ; do sed -e 's|\[from old catalog\]||g' < $f > $f.xml ; done"
+    remoldcatcmd = remoldcatcmd.replace('%TMPDIR%', j["tmpdir"]) 
+    remoldcatcmd = remoldcatcmd.replace('%PREFIX%', j["prefix"])
+    returned_value = subprocess.Popen(remoldcatcmd, shell=True).wait()
     
     print("Uconving {}*.xml".format(j["prefix"]))
     uconved = "cd %TMPDIR% && for f in %PREFIX%*.xml; do uconv -f utf8 -t utf8 -x nfc -c --from-callback skip --to-callback skip < $f > %TARGETDIR%$f; done"
