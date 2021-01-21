@@ -1,0 +1,167 @@
+#!/usr/bin/env python
+
+import yaml
+import sys
+import os
+
+import glob
+from shutil import rmtree
+
+import subprocess
+
+from multiprocessing.dummy import Pool as ThreadPool 
+import itertools
+
+import datetime
+from time import gmtime, strftime, sleep
+
+from os import listdir
+from os.path import isdir, isfile, join
+
+from modules.config_parser import args
+
+def Convert(config, j):
+    config = config
+    n = j["pos"]
+        
+    print("Processing job: " + str(n) + "; " + j["infile"] + "; " + j["outfile"])
+
+    print("Copying {} {}".format(j["infile"], j["tmpfile"]))
+    copycmd = "cp %INFILE% %OUTFILE%"
+    copycmd = copycmd.replace('%INFILE%', j["infile"])
+    copycmd = copycmd.replace('%OUTFILE%', j["tmpfile"])
+    returned_value = subprocess.Popen(copycmd, shell=True).wait()
+    
+    print("Splitting {} into {} chunks with prefix {}".format(j["tmpfile"], config["num_records_per_file"], j["prefix"]))
+    splitcmd = "cd %TMPDIR% && yaz-marcdump -i marc -o marc -f UTF-8 -t UTF-8 -s %PREFIX% -C %CHUNK% %INFILE% > /dev/null"
+    splitcmd = splitcmd.replace('%TMPDIR%', j["tmpdir"])
+    splitcmd = splitcmd.replace('%CHUNK%', str(config["num_records_per_file"]))
+    splitcmd = splitcmd.replace('%PREFIX%', j["prefix"])
+    splitcmd = splitcmd.replace('%INFILE%', j["tmpfile"])
+    # print(splitcmd)
+    returned_value = subprocess.Popen(splitcmd, shell=True).wait()
+    
+    print("Converting {} ISO2709 to MARC/XML".format(j["prefix"], config["num_records_per_file"], j["prefix"]))
+    tomarcxmlcmd = "cd %TMPDIR% && for f in %PREFIX%*; do yaz-marcdump -i marc -o marcxml -f UTF-8 -t UTF-8 $f > $f.1; done"
+    tomarcxmlcmd = tomarcxmlcmd.replace('%TMPDIR%', j["tmpdir"])
+    tomarcxmlcmd = tomarcxmlcmd.replace('%PREFIX%', j["prefix"])
+    # print(tomarcxmlcmd)
+    returned_value = subprocess.Popen(tomarcxmlcmd, shell=True).wait()
+
+    print ("Removing  {} from old file".format(j["prefix"], config["num_records_per_file"], j["prefix"]))
+    remoldcatcmd = "cd %TMPDIR% && for f in %PREFIX%*.1 ; do sed -e 's|\[from old catalog\]||g' < $f > $f.xml ; done"
+    remoldcatcmd = remoldcatcmd.replace('%TMPDIR%', j["tmpdir"]) 
+    remoldcatcmd = remoldcatcmd.replace('%PREFIX%', j["prefix"])
+    returned_value = subprocess.Popen(remoldcatcmd, shell=True).wait()
+    
+    print("Uconving {}*.xml".format(j["prefix"]))
+    uconved = "cd %TMPDIR% && for f in %PREFIX%*.xml; do uconv -f utf8 -t utf8 -x nfc -c --from-callback skip --to-callback skip < $f > %TARGETDIR%$f; done"
+    uconved = uconved.replace('%TMPDIR%', j["tmpdir"])
+    uconved = uconved.replace('%PREFIX%', j["prefix"])
+    uconved = uconved.replace('%TARGETDIR%', config["target_directory"])
+    returned_value = subprocess.Popen(uconved, shell=True).wait()
+    
+    rmtree(j["tmpdir"])
+    
+
+def dircontents(path, find_pattern, files):
+    pattern = path + '**/*' + find_pattern
+    for fpath in glob.glob(pattern, recursive=True):
+        if isfile(fpath):
+            files.append(fpath)
+    return files
+    
+config = yaml.safe_load(open(args.config))
+print()
+print("Config:")
+print(config)
+print()
+
+jobconfig = config["marc2marcxmltest"]
+print("Job config:")
+print(jobconfig)
+print()
+
+files = []
+files = dircontents(jobconfig["source_directory"], jobconfig["find_pattern"], files)
+print("Pre-sort:")
+print(files)
+print()
+files.sort()
+
+#print(str(len(files)))
+# files = files[:10]
+print()
+print("Post sort:")
+print(files)
+print()
+#print(str(len(files)))
+#print()
+
+pos = 1
+dirs = []
+jobs = []
+for f in files:
+    infile = f
+    outfile = f.replace(jobconfig["source_directory"], jobconfig["target_directory"])
+    prefix = "c" + str(pos).zfill(4) + "_"
+    tmpdir = jobconfig["tmp_processing_directory"] + prefix + "/"
+    tmpfile = tmpdir + f.replace(jobconfig["source_directory"], "")
+    j = {
+        "pos": pos,
+        "prefix": prefix,
+        "tmpdir": tmpdir,
+        "tmpfile": tmpfile,
+        "infile": infile,
+        "outfile": outfile
+    }
+    dirs.append(tmpdir)
+    jobs.append(j)
+    pos += 1
+
+print(jobs)
+print()
+print()
+
+if jobconfig["clean_target_directory"]:
+    for f in glob.glob(jobconfig["target_directory"] + "*", recursive=False):
+        if isfile(f):
+            os.unlink(f)
+
+for d in dirs:
+    print("Making dir: " + d)
+    os.makedirs(os.path.dirname(d), exist_ok=True)
+
+print()
+print("Number of threads: " + str(jobconfig["threads"]))
+print("Total number of jobs: " + str(len(jobs)))
+print()
+st = datetime.datetime.now()
+starttime = strftime("%Y-%m-%d %H:%M:%S", gmtime())
+
+# make the Pool of workers
+pool = ThreadPool(jobconfig["threads"]) 
+
+# open the urls in their own threads
+# and return the results
+results = pool.starmap(Convert, zip(itertools.repeat(jobconfig), jobs))
+
+# close the pool and wait for the work to finish 
+pool.close() 
+pool.join() 
+
+gt = gmtime()
+endtime = strftime("%Y-%m-%d %H:%M:%S", gt)
+et = datetime.datetime.now()
+timedelta = et - st
+
+print()
+print()
+print ("Task started at: " + starttime)
+print ("Task ended at: " + endtime)
+print ("Elapsed time: ", str(timedelta))
+print()
+print()
+
+
+
