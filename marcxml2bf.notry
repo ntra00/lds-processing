@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import yaml
 import sys
 import os
@@ -24,55 +25,35 @@ def Convert(config, j):
     config = config
     n = j["pos"]
 
-    error_state = False
-
     print("Processing job: " + str(n) + "; " + j["infile"] + "; " + j["outfile"])
 
-    try:
-        cmd = config["command"]
-        cmd = cmd.replace('%INFILE%', j["infile"])
-        cmd = cmd.replace('%OUTFILE%', j["tmpfile"])
-        returned_value =  subprocess.Popen(cmd, shell=True).wait()
+    cmd = config["command"]
+    cmd = cmd.replace('%INFILE%', j["infile"])
+    cmd = cmd.replace('%OUTFILE%', j["tmpfile"])
+    returned_value =  subprocess.Popen(cmd, shell=True).wait()
 
-    except:
-       error_state = True
-       logmessage = "Failed to convert to rdf..."
+    #    print ("Updating base url2 from old file")
+    baseurl2cmd = "cd %TMPDIR% && for f in *.xml ; do sed -e 's|//staging.lds.loc.gov/|http://id.loc.gov/|g' < $f > $f.1 > /marklogic/data/ntra/logs/sedlog.txt ; done"
+    baseurl2cmd = baseurl2cmd.replace('%TMPDIR%',  j["tmpdir"])
+    returned_value = subprocess.Popen(baseurl2cmd, shell=True).wait(
 
-    if error_state == False:
-        try:
-            baseurl2cmd = "cd %TMPDIR% && for f in *.xml ; do sed -e 's|//staging.id.loc.gov/|https://id.loc.gov/|g'  < $f > $f.1 ; done"
-            baseurl2cmd = baseurl2cmd.replace('%TMPDIR%', j["tmpdir"])
-            returned_value = subprocess.Popen(baseurl2cmd, shell=True).wait()
-        except:
-            error_state = True
-            logmessage = "Failed to update base url"
 
-    if error_state == False:
-        try:
-    #       print ("Graphiphy starting")
-            graphcmd = "cd %TMPDIR%  && for f in *.1 ; do xsltproc %MODULES%/graphiphy.xsl $f > $f.rdf ; done"
-            graphcmd = graphcmd.replace('%MODULES%', j["modulesdir"])
-            graphcmd = graphcmd.replace('%TMPDIR%', j["tmpdir"])
-            returned_value = subprocess.Popen(graphcmd, shell=True).wait()
-        except:
-            error_state = True
-            logmessage = "Failed to graphiphy"
+  # print ("Graphiphy starting")
 
-    if error_state == False:
-        try:
-            copy2cmd = "cp %INFILE%.1.rdf %OUTFILE%.rdf"
-            copy2cmd = copy2cmd.replace('%INFILE%', j["tmpfile"])
-            copy2cmd = copy2cmd.replace('%OUTFILE%', j["outfile"])
-            returned_value =   subprocess.Popen(copy2cmd, shell=True).wait()
-        except:
-            error_state = True
-            logmessage = "Failed to post to processed"
+    graphcmd = "cd %TMPDIR% && for f in *.1 ; do xsltproc %MODULES%/graphiphy.xsl $f > $f.rdf ; done" 
+    graphcmd = graphcmd.replace("%MODULES%", j["modulesdir"])
+    graphcmd = graphcmd.replace('%TMPDIR%', j["tmpdir"])
+    returned_value = subprocess.Popen(graphcmd, shell=True).wait()
 
-    if error_state == True:
-        print(logmessage+" "+ j["tmpfile"])
+
+
+    copy2cmd = "cp %INFILE%.1.rdf %OUTFILE%.rdf"
+    copy2cmd = copy2cmd.replace('%INFILE%', j["tmpfile"])
+    copy2cmd = copy2cmd.replace('%OUTFILE%', j["outfile"])
+    returned_value =   subprocess.Popen(copy2cmd, shell=True).wait()
 
 #    not waiting, so this crashes the last copying:
- #   rmtree(j["tmpdir"])
+#    rmtree(j["tmpdir"])
 
 def dircontents(path, files):
     for f in listdir(path):
