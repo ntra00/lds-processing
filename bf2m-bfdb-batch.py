@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-####!/marklogic/data/ntra/fmenv/bin/python3
-#####!/usr/bin/python  fails on from modules
-###### !/usr/bin/env python: fails on lxml
-######!/marklogic/data/kefo/work/fmenv/bin/python3
 
 #works on atom feed url of instances loaded (instance Ids in bfdb) works on a curl of an instance id: c0213880820001 
 # https://preprod-8230.id.loc.gov/resources/instances/c0213880820001.marc-pkg.xml
@@ -17,9 +13,9 @@ import shutil
 
 import multiprocessing
 import subprocess
-#import urllib3
+
 import urllib
-#import urllib2
+
 import argparse
 
 import feedparser
@@ -29,81 +25,65 @@ from datetime import date, timedelta
 from modules.helpers import get_config
 from modules.config_parser import args
 
-config=get_config(args)
-
-#from modules.helpers import get_config
-
+# for each entry, curl the marc pck to the our dir, get next 
+def get_feed_records(atom):
+        
+    for entry in atom.iterfind('.//{http://www.w3.org/2005/Atom}entry'):
+        for id in entry:
+            if( id.tag=="{http://www.w3.org/2005/Atom}id"  and "instances" in id.text ):
+                bibid= id.text.rsplit("/")[4]
+                curlcmd = curl.replace('%BIBID%', bibid)
+                curlcmd = curlcmd.replace('%OUTFILE%', bibid)
+                returned_value = subprocess.Popen(curlcmd, shell=True).wait()
+# feeds may be more than one page
+    for nexturl in atom.find('.//{http://www.w3.org/2005/Atom}link[@rel="next"]/@href')
+        get_feed_records(nexturl)
+         
+##############
 #       *** Main Program *****
-
 
 print("*** BF to MARC testing tool ***")
 print("*** Converts the latest feed to MARC ***")
-print('*** results #in "out/mrc.xml" ***')
-####################
-if 
-indir= "in/"
-shutil.rmtree("in")
-#os.mkdir("in")
-#outdir="out/"
-#print(indir)
+
 print ()
+
+####################
+config=get_config(args) 
+
+
 yesterday = date.today() - timedelta(days=1)
 yesterday=yesterday.strftime('%Y-%m-%d')
-
 config = yaml.safe_load(open(args.config))
-#config=get_config(args)
 job=args.job 
 jobconfig = config[job] 
 indir=jobconfig["source_directory"]
-#shutil.rmtree(indir)
-#os.mkdir(indir)
-
 outdir=jobconfig["source_directory"]
 feed=jobconfig["feed"]
-print() 
-#print("Config:")
-#print(config)
+feedurl=feed.replace('%YESTERDAY%',yesterday)
+curl=jobconfig["curl"]
+outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
+efilename= outdir + '/error.txt'
+
 print()
+print ("-----------------------------")
 print("Job config:")
 print(jobconfig)
 print ("yesterday is ", yesterday)
 print()
 print ("feed url is ", jobconfig["feed"])
-print (indir)
-print(outdir)
-#infile='bf-ids.txt'
-#print("this works on processing server but skip for now:")
-http = urllib3.PoolManager()
-
-feedurl=feed.replace('%YESTERDAY%',yesterday)
-#infile = http.request('GET',"https://preprod-8231.id.loc.gov/resources/bfedits/2021-01-08/feed/1")
-print ("feed url final is ", feedurl)
-#infile= http.request('GET',feedurl)
+print ("In dir is " , indir)
+print ("Out dir is " , outdir)
+print('results in ',outdir,'/bf-',yesterday,'-mrc.xml')
+print ("feed url is ", feedurl)
+print ("-----------------------------")
 infile = urllib.request.urlopen(feedurl).read()
-   
 
-#infile="today.xml"
-curl=jobconfig["curl"]
-#curl = "curl -L 'https://preprod-8230.id.loc.gov/resources/instances/%BIBID%.marc-pkg.xml' > in/%OUTFILE%.rdf"
-outfile = outdir + 'mrc.xml'
-efilename= outdir + '/error.txt'
-#one of thise 3?
-#atom= ET.parse(bytes(infile)
-
-atom = ET.fromstring(infile)
 atom=ET.XML(infile)
+get_feed_records(atom)
+
 bfstylesheet=jobconfig["bfstylesheet"]
 bf2marc=ET.parse(bfstylesheet)
 bf2marcxsl=ET.XSLT(bf2marc)
-count=0
-# curl -L http://preprod-8230.id.loc.gov/resources/instances/feed/22 > today.xml
-for entry in atom.iterfind('.//{http://www.w3.org/2005/Atom}entry'):
-    for id in entry:
-        if( id.tag=="{http://www.w3.org/2005/Atom}id"  and "instances" in id.text ):
-            bibid= id.text.rsplit("/")[4]
-            curlcmd = curl.replace('%BIBID%', bibid)
-            curlcmd = curlcmd.replace('%OUTFILE%', bibid)
-            returned_value = subprocess.Popen(curlcmd, shell=True).wait()
 
 bibfiles=list(glob.glob(indir+'*.rdf'))
 counter = 0
@@ -117,7 +97,7 @@ with open(outfile,'wb') as out:
         if counter % 100 == 0:
             print(counter,'/',len(bibfiles))
         print ("converting to marc: "+file)
-        bftree =         ET.parse(file)
+        bftree = ET.parse(file)
         bfroot = bftree.getroot()
              # result has marc
         try:
@@ -130,5 +110,5 @@ with open(outfile,'wb') as out:
         coll.insert(counter,record)
     out.write(ET.tostring(coll))
 out.close
-#os.system("cat out/mrc.xml")
+print ("Done with ",yesterday,: check: ", outdir,"/bf-",yesterday,"-mrc.xml")
 #print(glob.glob("out/*xml"))
