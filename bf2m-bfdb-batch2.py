@@ -37,15 +37,9 @@ config=get_config(args)
 
 print("*** BF to MARC testing tool ***")
 print("*** Converts the latest feed to MARC ***")
-print('*** results #in "out/mrc.xml" ***')
+
 ####################
 
-indir= "in/"
-shutil.rmtree("in")
-os.mkdir("in")
-outdir="out/"
-print(indir)
-print ()
 yesterday = date.today() - timedelta(days=1)
 yesterday=yesterday.strftime('%Y-%m-%d')
 
@@ -67,6 +61,7 @@ print()
 print ("feed url is ", jobconfig["feed"])
 print (indir)
 print(outdir)
+print('*** results #in out/bf', yesterday,'.xml ***')
 #infile='bf-ids.txt'
 #print("this works on processing server but skip for now:")
 http = urllib3.PoolManager()

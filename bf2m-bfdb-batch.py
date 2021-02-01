@@ -25,48 +25,59 @@ from datetime import date, timedelta
 from modules.helpers import get_config
 from modules.config_parser import args
 
-# for each entry, curl the marc pck to the our dir, get next 
-def get_feed_records(atom):
-        
-    for entry in atom.iterfind('.//{http://www.w3.org/2005/Atom}entry'):
-        for id in entry:
-            if( id.tag=="{http://www.w3.org/2005/Atom}id"  and "instances" in id.text ):
-                bibid= id.text.rsplit("/")[4]
-                curlcmd = curl.replace('%BIBID%', bibid)
-                curlcmd = curlcmd.replace('%OUTFILE%', bibid)
-                returned_value = subprocess.Popen(curlcmd, shell=True).wait()
-# feeds may be more than one page
-    #for nexturl in atom.link[@rel="next"]/@href:
-    for nexturl in atom.xpath("{http://www.w3.org/2005/Atom}link[@rel='next']/@href):
-        nextpage = urllib.request.urlopen(nexturl).read()
-        atom=ET.XML(nextpage)        
-        get_feed_records(nextpage)
-         
-##############
-#       *** Main Program *****
+# for each entry, curl the marc pck to the our dir, get next feed url (entry rel=next/@href) 
+def get_feed_records(feedurl):
 
-print("*** BF to MARC testing tool ***")
+    with urllib.request.urlopen(feedurl) as response:
+        page=response.read()
+        atom=ET.XML(page)
+        print(feedurl)
+        for entry in atom.iterfind('.//{http://www.w3.org/2005/Atom}entry'):
+            for id in entry:
+                if( id.tag=="{http://www.w3.org/2005/Atom}id"  and "instances" in id.text ):
+                    bibid= id.text.rsplit("/")[4]
+                    curlcmd = curl.replace('%BIBID%', bibid)
+                    curlcmd = curlcmd.replace('%OUTFILE%', bibid)
+                    returned_value = subprocess.Popen(curlcmd, shell=True).wait()
+
+        ns={'atom': "http://www.w3.org/2005/Atom" }    
+        for nexturl in atom.xpath('//atom:link[@rel="next"]',namespaces=ns) :
+             nextlink=nexturl.attrib['href']
+             print("nextlink is " , nextlink)
+             get_feed_records(nextlink)
+
+         
+####################
+#  Main Program 
+
+print("*** BF to MARC Yesterday's Atom Feed ***")
 print("*** Converts the latest feed to MARC ***")
 
 print ()
-
+print("Date wil be yesterday unless the date parameter is not 'none', formatted as YYYY-MM-DD") 
 ####################
+
 config=get_config(args) 
 
-
-yesterday = date.today() - timedelta(days=1)
-yesterday=yesterday.strftime('%Y-%m-%d')
 config = yaml.safe_load(open(args.config))
 job=args.job 
 jobconfig = config[job] 
 indir=jobconfig["source_directory"]
-outdir=jobconfig["source_directory"]
+outdir=jobconfig["target_directory"]
 feed=jobconfig["feed"]
 feedurl=feed.replace('%YESTERDAY%',yesterday)
 curl=jobconfig["curl"]
 outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
 efilename= outdir + '/error.txt'
 
+
+datetoprocess=jobconfig["date"]
+if date2process=="none" :
+    yesterday=date.today() - timedelta(days=1)
+    yesterday=yesterday.strftime('%Y-%m-%d')
+else 
+    yesterday=date2process
+    
 print()
 print ("-----------------------------")
 print("Job config:")
@@ -80,9 +91,9 @@ print ("Out dir is " , outdir)
 print('results in ',outdir,'/bf-',yesterday,'-mrc.xml')
 
 print ("-----------------------------")
-infile = urllib.request.urlopen(feedurl).read()
-
-atom=ET.XML(infile)
+files = glob.glob(indir*')
+for f in files:
+    os.remove(f)
 get_feed_records(atom)
 
 bfstylesheet=jobconfig["bfstylesheet"]
@@ -114,5 +125,5 @@ with open(outfile,'wb') as out:
         coll.insert(counter,record)
     out.write(ET.tostring(coll))
 out.close
-print ("Done with ",yesterday,: check: ", outdir,"/bf-",yesterday,"-mrc.xml")
+print ("Done with ",yesterday,": check: ", outdir+"bf-"+yesterday+"-mrc.xml")
 #print(glob.glob("out/*xml"))
