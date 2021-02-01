@@ -36,8 +36,11 @@ def get_feed_records(atom):
                 curlcmd = curlcmd.replace('%OUTFILE%', bibid)
                 returned_value = subprocess.Popen(curlcmd, shell=True).wait()
 # feeds may be more than one page
-    for nexturl in atom.find('.//{http://www.w3.org/2005/Atom}link[@rel="next"]/@href')
-        get_feed_records(nexturl)
+    #for nexturl in atom.link[@rel="next"]/@href:
+    for nexturl in atom.xpath("{http://www.w3.org/2005/Atom}link[@rel='next']/@href):
+        nextpage = urllib.request.urlopen(nexturl).read()
+        atom=ET.XML(nextpage)        
+        get_feed_records(nextpage)
          
 ##############
 #       *** Main Program *****
@@ -70,11 +73,12 @@ print("Job config:")
 print(jobconfig)
 print ("yesterday is ", yesterday)
 print()
-print ("feed url is ", jobconfig["feed"])
+print ("feed url is ", feed)
+print ("feed url is ", feedurl)
 print ("In dir is " , indir)
 print ("Out dir is " , outdir)
 print('results in ',outdir,'/bf-',yesterday,'-mrc.xml')
-print ("feed url is ", feedurl)
+
 print ("-----------------------------")
 infile = urllib.request.urlopen(feedurl).read()
 
