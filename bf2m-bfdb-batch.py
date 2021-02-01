@@ -54,7 +54,7 @@ print("*** BF to MARC Yesterday's Atom Feed ***")
 print("*** Converts the latest feed to MARC ***")
 
 print ()
-print("Date wil be yesterday unless the date parameter is not 'none', formatted as YYYY-MM-DD") 
+print("Date will be yesterday unless the date parameter is not 'none', formatted as YYYY-MM-DD") 
 ####################
 
 config=get_config(args) 
@@ -64,20 +64,27 @@ job=args.job
 jobconfig = config[job] 
 indir=jobconfig["source_directory"]
 outdir=jobconfig["target_directory"]
-feed=jobconfig["feed"]
-feedurl=feed.replace('%YESTERDAY%',yesterday)
 curl=jobconfig["curl"]
-outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
+feed=jobconfig["feed"]
+
 efilename= outdir + '/error.txt'
 
-
-datetoprocess=jobconfig["date"]
+date2process=jobconfig["processdate"]
 if date2process=="none" :
-    yesterday=date.today() - timedelta(days=1)
-    yesterday=yesterday.strftime('%Y-%m-%d')
-else 
+    yesterday = date.today() - timedelta(days=1)
+    yesterday = yesterday.strftime('%Y-%m-%d')
+else :
     yesterday=date2process
+
+feedurl=feed.replace('%YESTERDAY%',yesterday)
+outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
     
+files = glob.glob('indir*')
+for f in files:
+    os.remove(f)
+
+
+
 print()
 print ("-----------------------------")
 print("Job config:")
@@ -88,13 +95,11 @@ print ("feed url is ", feed)
 print ("feed url is ", feedurl)
 print ("In dir is " , indir)
 print ("Out dir is " , outdir)
-print('results in ',outdir,'/bf-',yesterday,'-mrc.xml')
+print('results in :',outfile)
 
 print ("-----------------------------")
-files = glob.glob(indir*')
-for f in files:
-    os.remove(f)
-get_feed_records(atom)
+
+get_feed_records(feedurl)
 
 bfstylesheet=jobconfig["bfstylesheet"]
 bf2marc=ET.parse(bfstylesheet)
