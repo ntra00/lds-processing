@@ -14,12 +14,13 @@ import subprocess
 import yaml
 
 from datetime import date, timedelta
+
 from modules.helpers import get_config
 from modules.config_parser import args
 
 
 def runxslt(parsedfile, stylesheet):
-    print ("transforming with "+stylesheet)
+    #print ("transforming with "+stylesheet)
     root = parsedfile.getroot()
     xslt = ET.parse(stylesheet)
     transform = ET.XSLT(xslt)
@@ -42,9 +43,10 @@ def runxslt(parsedfile, stylesheet):
 #	ls -ltr  */$marcbibid.*
 #######
 
-config=get_config(args) 
+#config=get_config(args) 
 
 config = yaml.safe_load(open(args.config))
+
 job=args.job 
 jobconfig = config[job] 
 indir=jobconfig["source_directory"]
@@ -59,12 +61,12 @@ if "lccn" in  filename :
 else :
     idtype="bib"
     
-files = glob.glob('indir*')
+files = glob.glob('indir*.rdf')
 for f in files:
     os.remove(f)
 
 
-outfile = outdir + replace(infile,'txt','xml')
+outfile = outdir + filename.replace('txt','xml')
 
 biblist=open(infile ,'r')
 	# this ignores \n :
@@ -96,15 +98,11 @@ coll=M.collection()
 with open(outfile,'wb') as out:
     for file in bibfiles:
         counter+=1
-         if counter % 100 == 0:
+        if counter % 100 == 0:
             print(counter,'/',len(bibfiles))
         
 
         bftree = ET.parse(file)
-#        bfroot = bftree.getroot()
-#        getbfxsl = ET.parse('get-bf.xsl')
- #       bftransform = ET.XSLT(getbfxsl)
-  #      bfrdf = bftransform(bfroot)
         bfrdf=runxslt(bftree,utilsdir+"get-bf.xsl")
 
         bfroot = bfrdf.getroot()
@@ -118,21 +116,18 @@ with open(outfile,'wb') as out:
 
 	     # for each "graph/record"
         for c in graphedxml.iterfind('.//{http://id.loc.gov/ontologies/lclocal/}graph'):
-              	   E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
-      	 	       nsmap={"lclocal":"http://id.loc.gov/ontologies/lclocal/",
+            E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
+      	 	    nsmap={"lclocal":"http://id.loc.gov/ontologies/lclocal/",
     		   	      "rdfs":"http://www.w3.org/2000/01/rdf-schema#",
 		              "rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
 		              "madsrdf":"http://www.loc.gov/mads/rdf/v1#",
 		              "bf":"http://id.loc.gov/ontologies/bibframe/",
 		              "bflc":"http://id.loc.gov/ontologies/bflc/"})
 
-	   #f=E.RDF()
-        #   for node in c:
-		 #     f.append(node)
- 	   #xmlfile=open("bf2mlist.rdf","wb")
-        #   xmlfile.write(ET.tostring(f))
-         #  xmlfile.close
-	      
+	        f=E.RDF()
+            for node in c:
+		        f.append(node)
+ 	        
 	       # result has marc
            result = bf2marcxsl(f)
 	       # convert xslt result to xml
@@ -144,7 +139,7 @@ with open(outfile,'wb') as out:
   
 out.close      
 
-os.system("cat out/mrc.xml")
+os.system("ls -ltr out/*.xml")
 print("\n")
-#print(glob.glob("out/*xml"))
+
 

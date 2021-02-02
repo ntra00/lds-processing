@@ -74,7 +74,7 @@ if date2process=="none" :
     yesterday = date.today() - timedelta(days=1)
     yesterday = yesterday.strftime('%Y-%m-%d')
 else :
-    yesterday=date2process
+    yesterday=str(date2process)
 
 feedurl=feed.replace('%YESTERDAY%',yesterday)
 outfile = outdir + 'bf-'+yesterday+'-mrc.xml'

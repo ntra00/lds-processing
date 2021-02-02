@@ -6,3 +6,14 @@ __pycache__
 *.uris
 *.log
 *.orig
+
+in/*
+out/*
+lccns.txt
+bibids.txt
+
+
+
+
+
+

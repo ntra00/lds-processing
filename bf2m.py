@@ -110,9 +110,9 @@ with open(outfile,'wb') as out:
 		              "bf":"http://id.loc.gov/ontologies/bibframe/",
 		              "bflc":"http://id.loc.gov/ontologies/bflc/"})
 
-	   f=E.RDF()
+       f=E.RDF()
            for node in c:
-		f.append(node)
+               f.append(node)
  	   xmlfile=open("bf2mlist.rdf","wb")
            xmlfile.write(ET.tostring(f))
            xmlfile.close
