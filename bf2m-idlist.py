@@ -7,9 +7,16 @@ from lxml import etree as ET
 from lxml.builder import ElementMaker
 import os
 import shutil
-import json
+
 import multiprocessing
 import subprocess
+
+import yaml
+
+from datetime import date, timedelta
+from modules.helpers import get_config
+from modules.config_parser import args
+
 
 def runxslt(parsedfile, stylesheet):
     print ("transforming with "+stylesheet)
@@ -35,19 +42,29 @@ def runxslt(parsedfile, stylesheet):
 #	ls -ltr  */$marcbibid.*
 #######
 
-indir= "in/"
-shutil.rmtree("in")
-os.mkdir("in")
-outdir="out/"
+config=get_config(args) 
 
-if len(sys.argv) > 1 :
-    idtype=sys.argv[1]
-    infile='lccns.txt'
+config = yaml.safe_load(open(args.config))
+job=args.job 
+jobconfig = config[job] 
+indir=jobconfig["source_directory"]
+outdir=jobconfig["target_directory"]
+filename=jobconfig["infile"]
+infile=indir+filename
+utilsdir=jobconfig["utilsdir"]
+    
+if "lccn" in  filename :
+    idtype="lccn"
+    
 else :
     idtype="bib"
-    infile='ids.txt'
+    
+files = glob.glob('indir*')
+for f in files:
+    os.remove(f)
 
-outfile = outdir + 'mrc.xml'
+
+outfile = outdir + replace(infile,'txt','xml')
 
 biblist=open(infile ,'r')
 	# this ignores \n :
@@ -79,30 +96,29 @@ coll=M.collection()
 with open(outfile,'wb') as out:
     for file in bibfiles:
         counter+=1
-#        if counter % 100 == 0:
-            #print(counter,'/',len(files))
-
-#	print ("starting "+file)
+         if counter % 100 == 0:
+            print(counter,'/',len(bibfiles))
+        
 
         bftree = ET.parse(file)
 #        bfroot = bftree.getroot()
 #        getbfxsl = ET.parse('get-bf.xsl')
  #       bftransform = ET.XSLT(getbfxsl)
   #      bfrdf = bftransform(bfroot)
-        bfrdf=runxslt(bftree,"get-bf.xsl")
+        bfrdf=runxslt(bftree,utilsdir+"get-bf.xsl")
 
         bfroot = bfrdf.getroot()
-        graphxsl = ET.parse('graphiphy.xsl')
+        graphxsl = ET.parse(utilsdir+'graphiphy.xsl')
         graphtransform = ET.XSLT(graphxsl)
         graphed = graphtransform(bfroot)
 
-        bf2marc=ET.parse("/marklogic/applications/bibframe2marc/bibframe2marc.xsl")
+        bf2marc=ET.parse(jobconfig["bfstylesheet"])
         bf2marcxsl=ET.XSLT(bf2marc)
         graphedxml=graphed.getroot()
 
 	     # for each "graph/record"
         for c in graphedxml.iterfind('.//{http://id.loc.gov/ontologies/lclocal/}graph'):
-  	   E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
+              	   E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
       	 	       nsmap={"lclocal":"http://id.loc.gov/ontologies/lclocal/",
     		   	      "rdfs":"http://www.w3.org/2000/01/rdf-schema#",
 		              "rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -110,12 +126,13 @@ with open(outfile,'wb') as out:
 		              "bf":"http://id.loc.gov/ontologies/bibframe/",
 		              "bflc":"http://id.loc.gov/ontologies/bflc/"})
 
-	   f=E.RDF()
-           for node in c:
-		f.append(node)
- 	   xmlfile=open("bf2mlist.rdf","wb")
-           xmlfile.write(ET.tostring(f))
-           xmlfile.close
+	   #f=E.RDF()
+        #   for node in c:
+		 #     f.append(node)
+ 	   #xmlfile=open("bf2mlist.rdf","wb")
+        #   xmlfile.write(ET.tostring(f))
+         #  xmlfile.close
+	      
 	       # result has marc
            result = bf2marcxsl(f)
 	       # convert xslt result to xml
