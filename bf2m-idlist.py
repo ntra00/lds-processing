@@ -13,7 +13,7 @@ import subprocess
 
 import yaml
 
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 from modules.helpers import get_config
 from modules.config_parser import args
@@ -54,6 +54,7 @@ outdir=jobconfig["target_directory"]
 filename=jobconfig["infile"]
 infile=outdir+filename
 utilsdir=jobconfig["utilsdir"]
+metaproxybase=jobconfig["metaproxybase"]
     
 if "lccn" in  filename :
     idtype="lccn"
