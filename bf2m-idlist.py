@@ -66,7 +66,7 @@ for f in files:
     os.remove(f)
 
 timestamp = datetime.now()
-timeprefix=timestamp.strftime('%y%m%d.%H%M'))
+timeprefix=timestamp.strftime('%y%m%d.%H%M')
 
 #yesterday = date.today() - timedelta(days=1)
 #yesterday = yesterday.strftime('%Y-%m-%d')
@@ -75,18 +75,18 @@ outfile = outdir + timeprefix+filename.replace('txt','xml')
 biblist=open(infile ,'r')
 	# this ignores \n :
 recids = biblist.read().splitlines()
-if "dev" in metaproxybase:  
+if "dev" in metaproxybase :  
     schema="bibframe2a-dev"
-else
+else :
     schema="bibframe2a"
      
-curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' > in/%OUTFILE%.rdf"
+curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' > in/%OUTFILE%.rdf"
 if idtype == "lccn":
     field="bath.lccn"
 else:
     field="rec.id"
-curl =curl.replace(%FIELD%,field)    
-curl =curl.replace(%SCHEMA%,schema)   
+curl =curl.replace("%FIELD%",field)    
+curl =curl.replace("%SCHEMA%",schema)   
 
 #    print("Getting lccns from :"+infile)
 #    curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
