@@ -80,8 +80,8 @@ if "dev" in metaproxybase :
     schema="bibframe2a-dev"
 else :
     schema="bibframe2a"
-# get metaproxy biframe, but suppress error/processing output:
-curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' 2& > /dev/null > in/%OUTFILE%.rdf"
+# get metaproxy biframe, but suppress error/processing output: " 2&> /dev/null "
+curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' > in/%OUTFILE%.rdf"
 if idtype == "lccn":
     field="bath.lccn"
 else:
@@ -110,29 +110,26 @@ counter = 0
 M= ElementMaker(namespace="http://www.loc.gov/MARC21/slim" ,
                 nsmap={"marc":"http://www.loc.gov/MARC21/slim"})
 coll=M.collection()
-error_state = True
+error_state = False
 with open(outfile,'wb') as out:
     for file in bffiles:
         counter+=1
         if counter % 100 == 0:
             print(counter,'/',len(bffiles))
         
-
         bftree = ET.parse(file)
-        bfrdf=runxslt(bftree,utilsdir+"get-bf.xsl")
         try:
-        
+            bfrdf=runxslt(bftree,utilsdir+"get-bf.xsl")               
+        except:
+            error_state = True
+            logmessage = "BF record not found?"
+        print (error_state)
+        if error_state == False:    
             bfroot = bfrdf.getroot()
             graphxsl = ET.parse(utilsdir+'graphiphy.xsl')
             graphtransform = ET.XSLT(graphxsl)
             graphed = graphtransform(bfroot)
 
-        except:
-            error_state = True
-            logmessage = "BF record not found?"
-
-        if error_state == False:
-        
             bf2marc=ET.parse(jobconfig["bfstylesheet"])
             bf2marcxsl=ET.XSLT(bf2marc)
             graphedxml=graphed.getroot()
