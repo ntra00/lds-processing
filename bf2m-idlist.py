@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#  works on list of specific lc bibids in a text file
+#  works on list of specific lc recids in a text file
 #  
 import glob
 import sys
@@ -52,7 +52,7 @@ jobconfig = config[job]
 indir=jobconfig["source_directory"]
 outdir=jobconfig["target_directory"]
 filename=jobconfig["infile"]
-infile=indir+filename
+infile=outdir+filename
 utilsdir=jobconfig["utilsdir"]
     
 if "lccn" in  filename :
@@ -61,7 +61,7 @@ if "lccn" in  filename :
 else :
     idtype="bib"
     
-files = glob.glob('indir*.rdf')
+files = glob.glob(indir+'*.rdf')
 for f in files:
     os.remove(f)
 
@@ -70,23 +70,23 @@ outfile = outdir + filename.replace('txt','xml')
 
 biblist=open(infile ,'r')
 	# this ignores \n :
-bibids = biblist.read().splitlines()
+recids = biblist.read().splitlines()
 
 if idtype == "lccn":
 #    print("Getting lccns from :"+infile)
-    curl = "curl -L 'http://mprxy-dev.loc.gov:210/LCDB?query=bath.lccn=%BIBID%&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
+    curl = "curl -L '"+metaproxy-base+"LCDB?query=bath.lccn=^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
 else:
  #   print("Getting bib ids from :"+infile)
-    curl = "curl -L 'http://mprxy-dev.loc.gov:210/LCDB?query=rec.id=%BIBID%&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
+    curl = "curl -L 'http://mprxy-dev.loc.gov:210/LCDB?query=rec.id=^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
 
 count = 0
-for bibid in bibids: 
-  #  print ("curling from metaproxy dev: "+ bibid)
-    curlcmd = curl.replace('%BIBID%', bibid)
-    curlcmd = curlcmd.replace('%OUTFILE%', bibid)
+for recid in recids: 
+  #  print ("curling from metaproxy dev: "+ recid)
+    curlcmd = curl.replace('%RECID%', recid)
+    curlcmd = curlcmd.replace('%OUTFILE%', recid)
     returned_value =  subprocess.Popen(curlcmd, shell=True).wait()
 
-bibfiles=list(glob.glob(indir+'*.rdf'))
+bffiles=list(glob.glob(indir+'*.rdf'))
    
 counter = 0
 
@@ -96,45 +96,52 @@ M= ElementMaker(namespace="http://www.loc.gov/MARC21/slim" ,
 coll=M.collection()
 
 with open(outfile,'wb') as out:
-    for file in bibfiles:
+    for file in bffiles:
         counter+=1
         if counter % 100 == 0:
-            print(counter,'/',len(bibfiles))
+            print(counter,'/',len(bffiles))
         
 
         bftree = ET.parse(file)
         bfrdf=runxslt(bftree,utilsdir+"get-bf.xsl")
+        try:
+        
+            bfroot = bfrdf.getroot()
+            graphxsl = ET.parse(utilsdir+'graphiphy.xsl')
+            graphtransform = ET.XSLT(graphxsl)
+            graphed = graphtransform(bfroot)
 
-        bfroot = bfrdf.getroot()
-        graphxsl = ET.parse(utilsdir+'graphiphy.xsl')
-        graphtransform = ET.XSLT(graphxsl)
-        graphed = graphtransform(bfroot)
+        except:
+            error_state = True
+            logmessage = "BF record not found?"
 
-        bf2marc=ET.parse(jobconfig["bfstylesheet"])
-        bf2marcxsl=ET.XSLT(bf2marc)
-        graphedxml=graphed.getroot()
+        if error_state == False:
+        
+            bf2marc=ET.parse(jobconfig["bfstylesheet"])
+            bf2marcxsl=ET.XSLT(bf2marc)
+            graphedxml=graphed.getroot()
 
 	     # for each "graph/record"
-        for c in graphedxml.iterfind('.//{http://id.loc.gov/ontologies/lclocal/}graph'):
-            E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
-      	 	    nsmap={"lclocal":"http://id.loc.gov/ontologies/lclocal/",
-    		   	      "rdfs":"http://www.w3.org/2000/01/rdf-schema#",
-		              "rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-		              "madsrdf":"http://www.loc.gov/mads/rdf/v1#",
-		              "bf":"http://id.loc.gov/ontologies/bibframe/",
-		              "bflc":"http://id.loc.gov/ontologies/bflc/"})
+            for c in graphedxml.iterfind('.//{http://id.loc.gov/ontologies/lclocal/}graph'):
+                E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
+      	 	        nsmap={"lclocal":"http://id.loc.gov/ontologies/lclocal/",
+    		   	          "rdfs":"http://www.w3.org/2000/01/rdf-schema#",
+		                  "rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+		                  "madsrdf":"http://www.loc.gov/mads/rdf/v1#",
+		                  "bf":"http://id.loc.gov/ontologies/bibframe/",
+		                  "bflc":"http://id.loc.gov/ontologies/bflc/"})
 
-	        f=E.RDF()
-            for node in c:
-		        f.append(node)
+                f=E.RDF()
+                for node in c:
+                    f.append(node)
  	        
 	       # result has marc
-           result = bf2marcxsl(f)
+                result = bf2marcxsl(f)
 	       # convert xslt result to xml
-           record= ET.XML(bytes(result))
+                record= ET.XML(bytes(result))
 	       # insert the record into the collection
-           coll.insert(1,record)   
-
+                coll.insert(1,record)   
+    
     out.write(ET.tostring(coll))
   
 out.close      
