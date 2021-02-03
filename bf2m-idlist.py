@@ -71,7 +71,7 @@ timeprefix=timestamp.strftime('%y%m%d.%H%M')
 
 #yesterday = date.today() - timedelta(days=1)
 #yesterday = yesterday.strftime('%Y-%m-%d')
-outfile = outdir + timeprefix+filename.replace('txt','xml')
+outfile = outdir + timeprefix+"."+filename.replace('txt','xml')
 
 biblist=open(infile ,'r')
 	# this ignores \n :
@@ -80,8 +80,8 @@ if "dev" in metaproxybase :
     schema="bibframe2a-dev"
 else :
     schema="bibframe2a"
-     
-curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' > in/%OUTFILE%.rdf"
+# get metaproxy biframe, but suppress error/processing output:
+curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' 2& > /dev/null > in/%OUTFILE%.rdf"
 if idtype == "lccn":
     field="bath.lccn"
 else:
