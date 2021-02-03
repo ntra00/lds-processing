@@ -65,19 +65,34 @@ files = glob.glob(indir+'*.rdf')
 for f in files:
     os.remove(f)
 
+timestamp = datetime.now()
+timeprefix=timestamp.strftime('%y%m%d.%H%M'))
 
-outfile = outdir + filename.replace('txt','xml')
+#yesterday = date.today() - timedelta(days=1)
+#yesterday = yesterday.strftime('%Y-%m-%d')
+outfile = outdir + timeprefix+filename.replace('txt','xml')
 
 biblist=open(infile ,'r')
 	# this ignores \n :
 recids = biblist.read().splitlines()
-
+if "dev" in metaproxybase:  
+    schema="bibframe2a-dev"
+else
+    schema="bibframe2a"
+     
+curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' > in/%OUTFILE%.rdf"
 if idtype == "lccn":
-#    print("Getting lccns from :"+infile)
-    curl = "curl -L '"+metaproxy-base+"LCDB?query=bath.lccn=^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
+    field="bath.lccn"
 else:
+    field="rec.id"
+curl =curl.replace(%FIELD%,field)    
+curl =curl.replace(%SCHEMA%,schema)   
+
+#    print("Getting lccns from :"+infile)
+#    curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
+#else:
  #   print("Getting bib ids from :"+infile)
-    curl = "curl -L 'http://mprxy-dev.loc.gov:210/LCDB?query=rec.id=^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
+#    curl =  "curl -L '"+metaproxybase+"LCDB?query=rec.id=^%RECID%$&recordSchema=bibframe2a-dev&maximumRecords=1' > in/%OUTFILE%.rdf"
 
 count = 0
 for recid in recids: 
@@ -94,7 +109,7 @@ counter = 0
 M= ElementMaker(namespace="http://www.loc.gov/MARC21/slim" ,
                 nsmap={"marc":"http://www.loc.gov/MARC21/slim"})
 coll=M.collection()
-
+error_state = True
 with open(outfile,'wb') as out:
     for file in bffiles:
         counter+=1

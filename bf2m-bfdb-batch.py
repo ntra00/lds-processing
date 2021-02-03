@@ -79,7 +79,7 @@ else :
 feedurl=feed.replace('%YESTERDAY%',yesterday)
 outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
     
-files = glob.glob('indir*')
+files = glob.glob(indir+'*')
 for f in files:
     os.remove(f)
 
