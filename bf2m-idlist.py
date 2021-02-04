@@ -81,7 +81,7 @@ if "dev" in metaproxybase :
 else :
     schema="bibframe2a"
 # get metaproxy biframe, but suppress error/processing output: " 2&> /dev/null "
-curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1' > in/%OUTFILE%.rdf"
+curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1'2&> /dev/null > in/%OUTFILE%.rdf"
 if idtype == "lccn":
     field="bath.lccn"
 else:

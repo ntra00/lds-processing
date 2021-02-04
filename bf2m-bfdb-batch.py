@@ -27,6 +27,7 @@ from modules.config_parser import args
 
 # for each entry, curl the marc pck to the our dir, get next feed url (entry rel=next/@href) 
 def get_feed_records(feedurl):
+    feedurl=feedurl.replace(" ","+")
 
     with urllib.request.urlopen(feedurl) as response:
         page=response.read()
@@ -35,18 +36,21 @@ def get_feed_records(feedurl):
         for entry in atom.iterfind('.//{http://www.w3.org/2005/Atom}entry'):
             for id in entry:
                 if( id.tag=="{http://www.w3.org/2005/Atom}id"  and "instances" in id.text ):
-                    bibid= id.text.rsplit("/")[4]
+                    print(id.text)
+                    if job="daily"
+                        bibid= id.text.rsplit("/")[4]
+                    else:
+                        bibid= id.text.rsplit("/")[3]
                     curlcmd = curl.replace('%BIBID%', bibid)
                     curlcmd = curlcmd.replace('%OUTFILE%', bibid)
                     returned_value = subprocess.Popen(curlcmd, shell=True).wait()
 
-        ns={'atom': "http://www.w3.org/2005/Atom" }    
+        ns={'atom': "http://www.w3.org/2005/Atom" }
         for nexturl in atom.xpath('//atom:link[@rel="next"]',namespaces=ns) :
              nextlink=nexturl.attrib['href']
              print("nextlink is " , nextlink)
              get_feed_records(nextlink)
 
-         
 ####################
 #  Main Program 
 
@@ -68,28 +72,31 @@ curl=jobconfig["curl"]
 feed=jobconfig["feed"]
 
 efilename= outdir + '/error.txt'
+# feed is either a daily feed (daily job or a search feed (searchfeed job)
+if "searchfeed" in job:
+    feedurl=feed
+    outfile= outdir+job+".xml"
+else:
+    date2process=jobconfig["processdate"]
+    if date2process=="none" :
+        yesterday = date.today() - timedelta(days=1)
+        yesterday = yesterday.strftime('%Y-%m-%d')
+    else :
+        yesterday=str(date2process)
 
-date2process=jobconfig["processdate"]
-if date2process=="none" :
-    yesterday = date.today() - timedelta(days=1)
-    yesterday = yesterday.strftime('%Y-%m-%d')
-else :
-    yesterday=str(date2process)
+    feedurl=feed.replace('%YESTERDAY%',yesterday)
+    outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
 
-feedurl=feed.replace('%YESTERDAY%',yesterday)
-outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
-    
 files = glob.glob(indir+'*')
 for f in files:
     os.remove(f)
-
-
 
 print()
 print ("-----------------------------")
 print("Job config:")
 print(jobconfig)
-print ("yesterday is ", yesterday)
+if "daily" in job:
+    print ("yesterday is ", yesterday)
 print()
 print ("feed url is ", feed)
 print ("feed url is ", feedurl)
@@ -98,7 +105,6 @@ print ("Out dir is " , outdir)
 print('results in :',outfile)
 
 print ("-----------------------------")
-
 get_feed_records(feedurl)
 
 bfstylesheet=jobconfig["bfstylesheet"]
@@ -130,5 +136,5 @@ with open(outfile,'wb') as out:
         coll.insert(counter,record)
     out.write(ET.tostring(coll))
 out.close
-print ("Done with ",yesterday,": check: ", outdir+"bf-"+yesterday+"-mrc.xml")
+print ("Done with ",job, " job : check: ", outfile)
 #print(glob.glob("out/*xml"))
