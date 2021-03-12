@@ -25,7 +25,12 @@ from datetime import date, timedelta
 from modules.helpers import get_config
 from modules.config_parser import args
 
-# for each entry, curl the marc pck to the our dir, get next feed url (entry rel=next/@href) 
+# for each entry, curl the marc pck to the our dir, get next feed url (entry rel=next/@href)
+
+class FileResolver(ET.Resolver):
+    def resolve(self, url, pubid, context):
+        return self.resolve_filename(url, context)
+
 def get_feed_records(feedurl):
     feedurl=feedurl.replace(" ","+")
 
@@ -37,10 +42,10 @@ def get_feed_records(feedurl):
             for id in entry:
                 if( id.tag=="{http://www.w3.org/2005/Atom}id"  and "instances" in id.text ):
                     print(id.text)
-                    if job="daily"
-                        bibid= id.text.rsplit("/")[4]
-                    else:
-                        bibid= id.text.rsplit("/")[3]
+#                    if job="daily":
+ #                       bibid= id.text.rsplit("/")[4]
+  #                  else:
+                    bibid= id.text.rsplit("/")[3]
                     curlcmd = curl.replace('%BIBID%', bibid)
                     curlcmd = curlcmd.replace('%OUTFILE%', bibid)
                     returned_value = subprocess.Popen(curlcmd, shell=True).wait()
@@ -70,6 +75,9 @@ indir=jobconfig["source_directory"]
 outdir=jobconfig["target_directory"]
 curl=jobconfig["curl"]
 feed=jobconfig["feed"]
+
+parser = ET.XMLParser()
+parser.resolvers.add(FileResolver())
 
 efilename= outdir + '/error.txt'
 # feed is either a daily feed (daily job or a search feed (searchfeed job)
@@ -108,7 +116,8 @@ print ("-----------------------------")
 get_feed_records(feedurl)
 
 bfstylesheet=jobconfig["bfstylesheet"]
-bf2marc=ET.parse(bfstylesheet)
+
+bf2marc=ET.parse(bfstylesheet,parser)
 bf2marcxsl=ET.XSLT(bf2marc)
 
 bibfiles=list(glob.glob(indir+'*.rdf'))
@@ -123,7 +132,7 @@ with open(outfile,'wb') as out:
         if counter % 100 == 0:
             print(counter,'/',len(bibfiles))
         print ("converting to marc: "+file)
-        bftree = ET.parse(file)
+        bftree = ET.parse(file,parser)
         bfroot = bftree.getroot()
              # result has marc
         try:
