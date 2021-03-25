@@ -98,7 +98,7 @@ curl =curl.replace("%SCHEMA%",schema)
 count = 0
 for recid in recids: 
   #  print ("curling from metaproxy dev: "+ recid)
-    if len(recid) < 7 or recid="" :
+    if len(recid) < 7 or recid == "" :
         pass
     curlcmd = curl.replace('%RECID%', recid)
     curlcmd = curlcmd.replace('%OUTFILE%', recid)
