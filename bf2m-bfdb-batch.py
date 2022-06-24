@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
-#works on atom feed url of instances loaded (instance Ids in bfdb) works on a curl of an instance id: c0213880820001 
-# https://preprod-8230.id.loc.gov/resources/instances/c0213880820001.marc-pkg.xml
+# Works on atom feed url of instances loaded (instance Ids in bfdb) works on a curl of an instance id: c0213880820001 
+# Curls /resources/bfedits/2021-01-08/feed/1, then curls the instances in the feed, converts to marcxml 
+# https://preprod-8230.id.loc.gov/resources/instances/21388082.marc-pkg.xml
+# Designed to be a daily export of edited records
 #
+
 import glob
 import sys
 from lxml import etree as ET
@@ -63,7 +66,7 @@ print("*** BF to MARC Yesterday's Atom Feed ***")
 print("*** Converts the latest feed to MARC ***")
 
 print ()
-print("Date will be yesterday unless the date parameter is not 'none', formatted as YYYY-MM-DD") 
+print("Set the Date to 'none' for yesterday, else format a specific date as YYYY-MM-DD") 
 ####################
 
 config=get_config(args) 
@@ -104,13 +107,13 @@ print ("-----------------------------")
 print("Job config:")
 print(jobconfig)
 if "daily" in job:
-    print ("yesterday is ", yesterday)
+    print ("Yesterday is ", yesterday)
 print()
-print ("feed url is ", feed)
+print ("feed is ", feed)
 print ("feed url is ", feedurl)
 print ("In dir is " , indir)
 print ("Out dir is " , outdir)
-print('results in :',outfile)
+print('Results in :',outfile)
 
 print ("-----------------------------")
 get_feed_records(feedurl)
