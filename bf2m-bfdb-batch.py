@@ -117,36 +117,38 @@ print('Results in :',outfile)
 
 print ("-----------------------------")
 get_feed_records(feedurl)
+if "dailyinternal" in job:
+    echo "done"
+else
+    bfstylesheet=jobconfig["bfstylesheet"]
 
-bfstylesheet=jobconfig["bfstylesheet"]
+    bf2marc=ET.parse(bfstylesheet,parser)
+    bf2marcxsl=ET.XSLT(bf2marc)
 
-bf2marc=ET.parse(bfstylesheet,parser)
-bf2marcxsl=ET.XSLT(bf2marc)
-
-bibfiles=list(glob.glob(indir+'*.rdf'))
-counter = 0
-# create output marcxml:collection:
-M= ElementMaker(namespace="http://www.loc.gov/MARC21/slim" ,
-    nsmap={"marc":"http://www.loc.gov/MARC21/slim"})
-coll=M.collection()
-with open(outfile,'wb') as out:
-    for file in bibfiles:
-        counter+=1
-        if counter % 100 == 0:
+    bibfiles=list(glob.glob(indir+'*.rdf'))
+    counter = 0
+    # create output marcxml:collection:
+    M= ElementMaker(namespace="http://www.loc.gov/MARC21/slim" ,
+        nsmap={"marc":"http://www.loc.gov/MARC21/slim"})
+    coll=M.collection()
+    with open(outfile,'wb') as out:
+        for file in bibfiles:
+            counter+=1
+            if counter % 100 == 0:
             print(counter,'/',len(bibfiles))
-        print ("converting to marc: "+file)
-        bftree = ET.parse(file,parser)
-        bfroot = bftree.getroot()
+            print ("converting to marc: "+file)
+            bftree = ET.parse(file,parser)
+            bfroot = bftree.getroot()
              # result has marc
-        try:
-                result=bf2marcxsl(bfroot)
-        except:
-                print("Unexpected error:", sys.exc_info()[0], sys.exc_info()[1] )
-                for info in sys.exc_info():
-                    print(info)
-        record= ET.XML(bytes(result))
-        coll.insert(counter,record)
-    out.write(ET.tostring(coll))
-out.close
-print ("Done with ",job, " job : check: ", outfile)
+            try:
+                    result=bf2marcxsl(bfroot)
+            except:
+                    print("Unexpected error:", sys.exc_info()[0], sys.exc_info()[1] )
+                    for info in sys.exc_info():
+                        print(info)
+            record= ET.XML(bytes(result))
+            coll.insert(counter,record)
+        out.write(ET.tostring(coll))
+    out.close
+    print ("Done with ",job, " job : check: ", outfile)
 #print(glob.glob("out/*xml"))
