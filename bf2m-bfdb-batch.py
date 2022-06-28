@@ -121,7 +121,12 @@ if "dailyinternal" not in job:
     bf2marc=ET.parse(bfstylesheet,parser)
     bf2marcxsl=ET.XSLT(bf2marc)
 
-bibfiles=list(glob.glob(indir+'*.rdf'))
+if "dailyinternal" in job:
+    # already  converted
+    bibfiles=list(glob.glob(indir+'*.xml'))
+else:
+    bibfiles=list(glob.glob(indir+'*.rdf'))
+print ("bibfiles", bibfiles)
 counter = 0
 # create output marcxml:collection:
 M= ElementMaker(namespace="http://www.loc.gov/MARC21/slim" ,
@@ -145,7 +150,7 @@ with open(outfile,'wb') as out:
                         print(info)
                 record= ET.XML(bytes(result))
             else:
-                record= ET.XML(bytes(file))
+                record= ET.XML(bytes(bfroot))
         coll.insert(counter,record)
     out.write(ET.tostring(coll))
 out.close
