@@ -151,8 +151,8 @@ with open(outfile,'wb') as out:
                 record= ET.XML(bytes(result))
             else:
                 record= ET.XML(bytes(bfroot))
-        coll.insert(counter,record)
-    out.write(ET.tostring(coll))
+            coll.insert(counter,record)
+        out.write(ET.tostring(coll))
 out.close
 print ("Done with ",job, " job : check: ", outfile)
 #print(glob.glob("out/*xml"))
