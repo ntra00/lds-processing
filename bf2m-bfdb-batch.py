@@ -75,17 +75,21 @@ jobconfig = config[job]
 indir=jobconfig["source_directory"]
 outdir=jobconfig["target_directory"]
 curl=jobconfig["curl"]
+
 feed=jobconfig["feed"]
+collection=jobconfig["collection"]
 
 parser = ET.XMLParser()
 parser.resolvers.add(FileResolver())
 
 efilename= outdir + '/error.txt'
 # feed is either a daily feed (daily job or a search feed (searchfeed job)
-if "searchfeed" in job:
-    feedurl=feed
+if "mod_anycollection" in job:
+    collquery_base="https://preprod-8231.id.loc.gov/lds/search.xqy?mime=application/alto+xml&qname=collection&filter=instances&q="
+    feedurl=collquery_base + collection
+    print("feedurl:",feedurl)
     outfile= outdir+job+".xml"
-else:
+else: # daily; calculations
     date2process=jobconfig["processdate"]
     if date2process=="none" :
         yesterday = date.today() - timedelta(days=1)
@@ -115,17 +119,17 @@ print('Results in :',outfile)
 
 print ("-----------------------------")
 get_feed_records(feedurl)
-if "dailyinternal" not in job:
-   
+if "fs_" in job:   
     bfstylesheet=jobconfig["bfstylesheet"]
     bf2marc=ET.parse(bfstylesheet,parser)
     bf2marcxsl=ET.XSLT(bf2marc)
 
-if "dailyinternal" in job:
+if "mod_" in job:
     # already  converted
     bibfiles=list(glob.glob(indir+'*.xml'))
 else:
     bibfiles=list(glob.glob(indir+'*.rdf'))
+
 print ("bibfiles", bibfiles)
 counter = 0
 # create output marcxml:collection:
@@ -137,21 +141,21 @@ with open(outfile,'wb') as out:
         counter+=1
         if counter % 100 == 0:
             print(counter,'/',len(bibfiles))
-            print ("converting to marc: "+file)
-            bftree = ET.parse(file,parser)
-            bfroot = bftree.getroot()
-            if "dailyinternal" not in job:
-                # result has marc
-                try:
-                    result=bf2marcxsl(bfroot)
-                except:
-                    print("Unexpected error:", sys.exc_info()[0], sys.exc_info()[1] )
-                    for info in sys.exc_info():
-                        print(info)
-                record= ET.XML(bytes(result))
-            else:
-                record= ET.XML(bytes(bfroot))
-            coll.insert(counter,record)
+        print ("converting to marc: "+file)
+        bftree = ET.parse(file,parser)
+        bfroot = bftree.getroot()
+        if "fs_" in job:
+            # result has marc
+            try:
+                result=bf2marcxsl(bfroot)
+            except:
+                print("Unexpected error:", sys.exc_info()[0], sys.exc_info()[1] )
+                for info in sys.exc_info():
+                    print(info)
+            record= ET.XML(bytes(result))
+        else:
+            record= ET.XML(bytes(bfroot))
+        coll.insert(counter,record)
         out.write(ET.tostring(coll))
 out.close
 print ("Done with ",job, " job : check: ", outfile)
