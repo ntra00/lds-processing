@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-# Works on atom feed url of instances loaded (instance Ids in bfdb) works on a curl of an instance id: c0213880820001 
-# Curls /resources/bfedits/2021-01-08/feed/1, then curls the instances in the feed, converts to marcxml 
+# Works on atom feed url of instances loaded (instance Ids in bfdb) works on a curl of an instance id: c0213880820001
+# Curls /resources/bfedits/2021-01-08/feed/1, then curls the instances in the feed, converts to marcxml
 # https://preprod-8230.id.loc.gov/resources/instances/21388082.marc-pkg.xml
 # Designed to be a daily export of edited records
 #
@@ -58,26 +58,25 @@ def get_feed_records(feedurl):
              get_feed_records(nextlink)
 
 ####################
-#  Main Program 
+#  Main Program
 
 print("*** BF to MARC Yesterday's Atom Feed ***")
 print("*** Converts the latest feed to MARC ***")
 
 print ()
-print("Set the Date to 'none' for yesterday, else format a specific date as YYYY-MM-DD") 
+print("Set the Date to 'none' for yesterday, else format a specific date as YYYY-MM-DD")
 ####################
 
-config=get_config(args) 
+config=get_config(args)
 
 config = yaml.safe_load(open(args.config))
-job=args.job 
-jobconfig = config[job] 
+job=args.job
+jobconfig = config[job]
 indir=jobconfig["source_directory"]
 outdir=jobconfig["target_directory"]
 curl=jobconfig["curl"]
 
 feed=jobconfig["feed"]
-collection=jobconfig["collection"]
 
 parser = ET.XMLParser()
 parser.resolvers.add(FileResolver())
@@ -86,19 +85,25 @@ efilename= outdir + '/error.txt'
 # feed is either a daily feed (daily job or a search feed (searchfeed job)
 if "mod_anycollection" in job:
     collquery_base="https://preprod-8231.id.loc.gov/lds/search.xqy?mime=application/alto+xml&qname=collection&filter=instances&q="
+    collection=jobconfig["collection"]
     feedurl=collquery_base + collection
     print("feedurl:",feedurl)
     outfile= outdir+job+".xml"
-else: # daily; calculations
-    date2process=jobconfig["processdate"]
-    if date2process=="none" :
-        yesterday = date.today() - timedelta(days=1)
-        yesterday = yesterday.strftime('%Y-%m-%d')
-    else :
-        yesterday=str(date2process)
+else:
+    if "mod_searchfeed" in job:
+        feedurl=feed
+        print("feedurl:",feedurl)
+        outfile= outdir+job+".xml"
+    else: # daily; calculations
+        date2process=jobconfig["processdate"]
+        if date2process=="none" :
+            yesterday = date.today() - timedelta(days=1)
+            yesterday = yesterday.strftime('%Y-%m-%d')
+        else :
+            yesterday=str(date2process)
 
-    feedurl=feed.replace('%YESTERDAY%',yesterday)
-    outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
+        feedurl=feed.replace('%YESTERDAY%',yesterday)
+        outfile = outdir + 'bf-'+yesterday+'-mrc.xml'
 
 files = glob.glob(indir+'*')
 for f in files:
@@ -119,7 +124,7 @@ print('Results in :',outfile)
 
 print ("-----------------------------")
 get_feed_records(feedurl)
-if "fs_" in job:   
+if "fs_" in job:
     bfstylesheet=jobconfig["bfstylesheet"]
     bf2marc=ET.parse(bfstylesheet,parser)
     bf2marcxsl=ET.XSLT(bf2marc)
@@ -154,9 +159,10 @@ with open(outfile,'wb') as out:
                     print(info)
             record= ET.XML(bytes(result))
         else:
-            record= ET.XML(bytes(bfroot))
+            record= bfroot
         coll.insert(counter,record)
-        out.write(ET.tostring(coll))
+    out.write(ET.tostring(coll))
 out.close
 print ("Done with ",job, " job : check: ", outfile)
 #print(glob.glob("out/*xml"))
+(fmenv) [ntra@ip-10-52-149-16 lds-processing]$
