@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-#  works on list of specific lc recids in a text file
+#  works on list of specific lc recids in a text file, whether bibid or lccn
+#  finds the marc record and saves it,
+# this is not finished; it uses metaproxy, not ID or bfdb 
 #  
 import glob
 import sys
@@ -33,11 +35,11 @@ def runxslt(parsedfile, stylesheet,parser):
     return resultxml;
 
 
-#print("*** BF to MARC testing tool                                              ***")
-#print("*** Make a list of lccns in 'lccns.txt' or a list of bibids in 'ids.txt' ***")
-#print('*** If you want to use the lccns file, "./bf2m.py lccn"                  ***')
-#print('*** For bibids, use : "./bf2m.py"                                        ***')
-#print('*** results in "out/mrc.xm"                                              ***')
+print("*** MARC exporting tool                                                  ***")
+print("*** Make a list of lccns in 'lccns.txt' or a list of bibids in 'ids.txt' ***")
+print('*** If you want to use the lccns file, "./bf2m.py lccn"                  ***')
+print('*** For bibids, use : "./bf2m.py"                                        ***')
+print('*** results in "out/mrc.xm"                                              ***')
 ####################
 # existing jowill script:
 #	curl -L "http://mprxy-dev.loc.gov:210/LCDB?query=rec.id=$marcbibid&recordSchema=marcxml&maximumRecords=1" -o in/tmp.xml
@@ -65,7 +67,7 @@ if "lccn" in  filename :
 
 else :
     idtype="bib"
-
+# clean out the input dir: (rdf only)
 files = glob.glob(indir+'*.rdf')
 for f in files:
     os.remove(f)
@@ -86,16 +88,20 @@ else :
     schema="bibframe2a"
 # get metaproxy biframe, but suppress error/processing output: " 2&> /dev/null "
 curl = "curl -L '"+metaproxybase+"LCDB?query=%FIELD%=^%RECID%$&recordSchema=%SCHEMA%&maximumRecords=1'2&> /dev/null > in/%OUTFILE%.rdf"
+
 if idtype == "lccn":
     field="bath.lccn"
 else:
     field="rec.id"
+
 curl =curl.replace("%FIELD%",field)    
 curl =curl.replace("%SCHEMA%",schema)   
 
 count = 0
 for recid in recids: 
   #  print ("curling from metaproxy dev: "+ recid)
+    if len(recid) < 7 or recid == "" :
+        continue
     curlcmd = curl.replace('%RECID%', recid)
     curlcmd = curlcmd.replace('%OUTFILE%', recid)
     print (curlcmd)
@@ -108,6 +114,9 @@ parser.resolvers.add(FileResolver())
 
 bf2marc=ET.parse(jobconfig["bfstylesheet"],parser) 
 bf2marcxsl=ET.XSLT(bf2marc)
+
+graphxsl = ET.parse(utilsdir+'graphiphy.xsl',parser)
+graphtransform = ET.XSLT(graphxsl)
 
 counter = 0
 
@@ -126,69 +135,33 @@ with open(outfile,'wb') as out:
         bftree = ET.parse(file,parser)
           # filter away the zs wrappers
         try:
-            bfrdf=runxslt(bftree,utilsdir+"get-bf.xsl",parser)
+            bfrdf = runxslt(bftree,utilsdir+"get-bf.xsl",parser)
         except:
             error_state = True
             logmessage = "BF record not found?"
         if error_state == False:
             bfroot = bfrdf.getroot()
-            graphxsl = ET.parse(utilsdir+'graphiphy.xsl',parser)
-            graphtransform = ET.XSLT(graphxsl)
-            try:
-                graphed = graphtransform(bfroot)
-            except:
-                logmessage="graphing failed"
-                error_state = True
-            if error_state == False:
-#                bf2marc=ET.parse(jobconfig["bfstylesheet"],parser)
- #               bf2marcxsl=ET.XSLT(bf2marc)
-                graphedxml=graphed.getroot()
-                test=open("test.rdf","wb")
-                test.write(ET.tostring(graphedxml))   
-                test.close
-	     # for each "graph/record"
-                for c in graphedxml.iterfind('.//{http://id.loc.gov/ontologies/lclocal/}graph'):
-                    E = ElementMaker(namespace="http://www.w3.org/1999/02/22-rdf-syntax-ns#", 
-      	 	            nsmap={"lclocal":"http://id.loc.gov/ontologies/lclocal/",
-    		   	          "rdfs":"http://www.w3.org/2000/01/rdf-schema#",
-		                  "rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-		                  "madsrdf":"http://www.loc.gov/mads/rdf/v1#",
-		                  "bf":"http://id.loc.gov/ontologies/bibframe/",
-		                  "bflc":"http://id.loc.gov/ontologies/bflc/"})
-
-                    f=E.RDF()
-                    for node in c:
-                        f.append(node)
-                    test2=open("test2.rdf","wb")
-                    test2.write(ET.tostring(f))
-                    test2.close
-# experimental parser fixing
-#                    parser = ET.XMLParser()
- #                   parser.resolvers.add(FileResolver())
-                   # xml_input = ET.parse(open('test2.rdf','r'), parser)
-                    bf_input = ET.parse(f,parser)
-#                    xslt_root = ET.parse(open(jobconfig["bfstylesheet"],'r'), parser)
- #                   transform = ET.XSLT(xslt_root)
-
-
+           # don't need graphiphy because the curl is for a marc pkg in metaproxy
+            
 	       # result has marc
-                    try:
-                        result = bf2marcxsl(bf_input)
-#                        result=transform(bf_input)
-                    except  OSError as err:
-                        print("OS error: {0}".format(err))
-                        error_state= True
-                    except: 
-                        print("Unexpected error:", sys.exc_info()[0])
-                        for error in bf2marcxsl.error_log:
-                            print(error.message, error.line)
-                        error_state=True
-                        raise
-                    if error_state == False:
+            try:
+                result = bf2marcxsl(bfroot)
+#                       result=transform(bf_input)
+            except  OSError as err:
+                print("OS error: {0}".format(err))
+                error_state= True
+            except: 
+                print("Unexpected error:", sys.exc_info()[0])
+                for error in bf2marcxsl.error_log:
+                    print(error.message, error.line)
+                error_state=True
+                print("Skipping ",file, "for bf2marc error") 
+                pass
+            if error_state == False:
 	       # convert xslt result to xml
-                        record= ET.XML(bytes(result))
+                record= ET.XML(bytes(result))
 	       # insert the record into the collection
-                        coll.insert(1,record)
+                coll.insert(1,record)
 
     out.write(ET.tostring(coll))
 

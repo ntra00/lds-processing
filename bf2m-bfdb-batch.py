@@ -165,4 +165,4 @@ with open(outfile,'wb') as out:
 out.close
 print ("Done with ",job, " job : check: ", outfile)
 #print(glob.glob("out/*xml"))
-(fmenv) [ntra@ip-10-52-149-16 lds-processing]$
+#(fmenv) [ntra@ip-10-52-149-16 lds-processing]$
